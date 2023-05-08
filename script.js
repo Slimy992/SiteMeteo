@@ -8,31 +8,42 @@ const apiKey = "277298eb6341a54a8f7a17db41009443";
 
 
 let derniereVille = Cookies.get('derniereVille');
-console.log(derniereVille);
 let liste = document.getElementById("liste");
+let location =  document.getElementById("location");
 
-async function fetchData(argVille) {
+async function fetchCoord(argVille){
     let dataFetch;
-    dataFetch = await fetch("https://api.openweathermap.org/data/2.5/weather?q=" 
-    + argVille 
-    + "&units=metric&appid=" 
-    + apiKey)
-    .then((response) => response.json())
-    .finally((data) => dataFetch = data);
-    if (dataFetch.cod === '404'){
-        alert("Désolé, cette emplacement n'a pas été trouver.")
-        return;
+    try {
+    dataFetch = await fetch("http://api.openweathermap.org/geo/1.0/direct?"
+    + "q=" + argVille
+    + "&appid=" + apiKey)
+    return await dataFetch.json();
+    } catch (error) {
+        alert("Désolé, cette emplacement n'a pas été trouver.");
     }
-    return dataFetch;
 }
 
-async function fetchDataCoord(argPos) {
+async function fetchCoordReverse(argLat, argLong) {
+    let dataFetch;
+    try {
+    dataFetch = await fetch("http://api.openweathermap.org/geo/1.0/reverse?"
+    + "lat=" + argLat
+    +"&lon=" + argLong
+    + "&limit=5&appid=" 
+    + apiKey)
+    return await dataFetch.json();
+    } catch (error) {
+        alert("Désolé, cette emplacement n'a pas été trouver.");
+    }
+}
+
+async function fetchDataCoord(argLat, argLong) {
     let dataFetch;
     try {
     dataFetch = await fetch("https://api.openweathermap.org/data/3.0/onecall?"
-    + "lat=" + argPos.latitude
-    +"&lon=" + argPos.longitude
-    + "&exclude=hourly,minutely&units=metric&appid=" 
+    + "lat=" + argLat
+    +"&lon=" + argLong
+    + "&exclude=current,hourly,minutely&units=metric&appid=" 
     + apiKey)
     return await dataFetch.json();
     } catch (error) {
@@ -49,22 +60,23 @@ async function Iniatilisation(){
     if (derniereVille === undefined || ""){
         getPosition();
     }
-    let data = await fetchData(derniereVille);
-    CreerCardMeteo(data);
+    let coords = await fetchCoord(derniereVille);
+    ajouterVilleCoord(coords);
+    CreerLaMetro()
 }
 
 async function ajouterVille(){
     let ville = document.getElementById("villeAChercher").value;
-    let data = await fetchData(ville);
-    console.log(data);
-    CreerCardMeteo(data);
+    let villeCoords = await fetchCoord(ville);
+    ajouterVilleCoord(villeCoords);
     Cookies.set('derniereVille', ville)
 }
 
 async function ajouterVilleCoord(pos){
-    let data = await fetchDataCoord(pos.coords);
-    console.log(data);
-    CreerCardMeteoCoord(data);
+    console.log(pos);
+    let data = await fetchDataCoord(pos[0].lat,pos[0].lon);
+    location.innerText = "Voici la météo à "+ pos[0].name +" sur les trois prochains jours"
+    CreerLaMetro(data)
 }
 
 function getPosition() {
@@ -79,54 +91,40 @@ function error(){
     alert("Impossible de trouver votre géolocation")
 }
 
-function CreerCardMeteo(data){
-    
-    let divPrincipale = document.createElement("div");
-    divPrincipale.className = 
-    "bg-neutral-800 text-white p-4 w-96 m-4 rounded-2xl m-4 flex flex-col justify-around items-center text-2xl shadow-2xl shadow-black hover:scale-110 transition";
-    let titre = document.createElement("h1");
-    titre.textContent = "Météo à : " + data.name;
-    let temperature = document.createElement("h2");
-    temperature.textContent = "Temperature moyenne : " + data.main.temp + "°C";
-    let temperatureMin = document.createElement("h2");
-    temperatureMin.textContent = "Temperature minimum : " + data.main.temp_min + "°C";
-    let temperatureMax = document.createElement("h2");
-    temperatureMax.textContent = "Temperature maximum : " + data.main.temp_max + "°C";
-    let ciel = document.createElement("img");
-    ciel.src = "https://openweathermap.org/img/wn/" + data.weather[0].icon + "@2x.png"; 
-    let humidite = document.createElement("p");
-    humidite.textContent = "Humidité : " + data.main.humidity + "%";
-    let vent = document.createElement("p");
-    vent.textContent = "Vitesse du vent : " + data.wind.speed + " km/h";
-    divPrincipale.append(titre);
-    divPrincipale.append(temperature);
-    divPrincipale.append(temperatureMax);
-    divPrincipale.append(temperatureMin);
-    divPrincipale.append(ciel);
-    divPrincipale.append(humidite);
-    divPrincipale.append(vent);
-    liste.prepend(divPrincipale);
+function CreerLaMetro (data) {
+    liste.innerHTML = '';
+    for ( var i = 0 ; i < 3 ; i++){
+        if (i == 0) {
+            CreerCardMeteoCoord(data,i,"Aujourd'hui");
+        }
+        if (i == 1) {
+            CreerCardMeteoCoord(data,i,"Demain");
+        }
+        if (i == 2) {
+            CreerCardMeteoCoord(data,i,"Après Demain");
+        }
+    }
 }
 
-function CreerCardMeteoCoord(data){
+function CreerCardMeteoCoord(data, index, journee){
     
     let divPrincipale = document.createElement("div");
     divPrincipale.className = 
     "bg-neutral-800 text-white p-4 w-96 m-4 rounded-2xl m-4 flex flex-col justify-around items-center text-2xl shadow-2xl shadow-black hover:scale-110 transition";
     let titre = document.createElement("h1");
-    titre.textContent = "Météo à : " + data.lat + " " + data.lon;
+    titre.textContent = journee;
     let temperature = document.createElement("h2");
-    temperature.textContent = "Temperature moyenne : " + data.current.temp + "°C";
+    temperature.textContent = "Temperature moyenne : " + data.daily[index].temp.day + "°C";
     let temperatureMin = document.createElement("h2");
-    temperatureMin.textContent = "Temperature minimum : " + data.daily[0].temp.min + "°C";
+    temperatureMin.textContent = "Temperature minimum : " + data.daily[index].temp.min + "°C";
     let temperatureMax = document.createElement("h2");
-    temperatureMax.textContent = "Temperature maximum : " + data.daily[0].temp.max + "°C";
+    temperatureMax.textContent = "Temperature maximum : " + data.daily[index].temp.max + "°C";
     let ciel = document.createElement("img");
-    ciel.src = "https://openweathermap.org/img/wn/" + data.daily[0].weather[0].icon + "@2x.png"; 
+    ciel.src = "https://openweathermap.org/img/wn/" + data.daily[index].weather[0].icon + "@2x.png"; 
     let humidite = document.createElement("p");
-    humidite.textContent = "Humidité : " + data.current.humidity + "%";
+    humidite.textContent = "Humidité : " + data.daily[index].humidity + "%";
     let vent = document.createElement("p");
-    vent.textContent = "Vitesse du vent : " + data.daily[0].wind_speed + " km/h";
+    vent.textContent = "Vitesse du vent : " + data.daily[index].wind_speed + " km/h";
     divPrincipale.append(titre);
     divPrincipale.append(temperature);
     divPrincipale.append(temperatureMax);
@@ -134,6 +132,6 @@ function CreerCardMeteoCoord(data){
     divPrincipale.append(ciel);
     divPrincipale.append(humidite);
     divPrincipale.append(vent);
-    liste.prepend(divPrincipale);
+    liste.append(divPrincipale);
 }
 
